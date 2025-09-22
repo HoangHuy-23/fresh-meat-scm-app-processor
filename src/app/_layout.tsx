@@ -64,6 +64,8 @@ const InitialLayout = () => {
           name="shipments/create"
           options={{ headerShown: false }}
         />
+        {/* Traceability screens */}
+        <Stack.Screen name="traceability" options={{ headerShown: false }} />
         {/* 404 */}
         <Stack.Screen name="+not-found" />
         {/* Auth screens */}

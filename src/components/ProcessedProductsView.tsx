@@ -124,7 +124,9 @@ export default function ProcessedProductsView() {
                   Xuất kho
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-row items-center bg-gray-300 px-3 py-2 rounded-full">
+              <TouchableOpacity className="flex-row items-center bg-gray-300 px-3 py-2 rounded-full"
+                onPress={() => router.push(`/traceability?unitId=${item.assetID}`)}
+              >
                 <MaterialCommunityIcons
                   name="qrcode-scan"
                   size={18}

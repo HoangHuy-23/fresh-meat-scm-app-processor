@@ -53,7 +53,7 @@ const LoginScreen = () => {
       >
         <View className="flex-1 justify-center items-center p-6">
           <Image
-            source={require('../../assets/images/logo.jpeg')}
+            source={require('../../assets/images/logo.png')}
             className="w-60 h-60"
           />
           <Text className="text-3xl font-bold text-gray-800">Chào mừng trở lại!</Text>

@@ -11,6 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import "react-native-get-random-values";
+import { v4 as uuidv4 } from "uuid";
+
+export function generateUUID() {
+  return uuidv4();
+}
 
 export default function QRCode() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -18,6 +24,7 @@ export default function QRCode() {
   const [scannedData, setScannedData] = useState<string | null>(null);
   const router = useRouter();
   const isFocused = useIsFocused();
+  const newAssetPrefix = generateUUID();
 
   // Reset khi màn hình được focus
   useFocusEffect(
@@ -42,60 +49,59 @@ export default function QRCode() {
     );
   }
 
-  // Hàm xử lý khi quét được mã
-  const handleBarCodeScanned = ({
+  const handleBarCodeScanned = async ({
     type,
     data,
   }: {
     type: string;
     data: string;
   }) => {
-    if (!scanned) {
-      setScanned(true);
+    if (scanned) return;
+    setScanned(true);
 
-      try {
-        // Parse JSON từ chuỗi data
-        const parsed = JSON.parse(data);
+    try {
+      const parsed = JSON.parse(data);
+      const { shipmentID, facilityID, action, items = [] } = parsed;
 
-        // Lấy các field chính
-        const shipmentID = parsed.shipmentID;
-        const facilityID = parsed.facilityID;
-        const action = parsed.action;
+      const firstItem = items[0] || {};
+      const { assetID, quantity } = firstItem;
+      const { value: quantityValue, unit: quantityUnit } = quantity || {};
 
-        // Lấy chi tiết item (ở đây chỉ có 1 item, nhưng có thể nhiều)
-        const items = parsed.items || [];
-        const firstItem = items[0]; // lấy item đầu tiên
-        const assetID = firstItem?.assetID;
-        const quantityValue = firstItem?.quantity?.value;
-        const quantityUnit = firstItem?.quantity?.unit;
+      // Map hành động sang API tương ứng
+      const actionMap: Record<string, () => Promise<any>> = {
+        DELIVERY: () =>
+          shipmentApi.confirmDeliveryShipment(shipmentID, {
+            facilityID,
+            newAssetPrefix,
+          }),
+        PICKUP: () =>
+          shipmentApi.confirmPickupShipment(shipmentID, {
+            facilityID,
+            actualItems: [
+              {
+                assetID,
+                quantity: { value: quantityValue, unit: quantityUnit },
+              },
+            ],
+          }),
+      };
 
-        // call API xác nhận đã nhận lô hàng
-        const confirmPickup = async () => {
-          try {
-            const response = await shipmentApi.confirmPickupShipment(shipmentID, {
-              facilityID,
-              actualItems: [
-                {
-                  assetID,
-                  quantity: {
-                    value: quantityValue,
-                    unit: quantityUnit,
-                  },
-                },
-              ],
-            });
-            console.log("Confirm pickup response:", response);
-            Alert.alert("Thành công", "Đã xác nhận nhận lô hàng");
-          } catch (error) {
-            Alert.alert("Lỗi", "Không thể xác nhận nhận lô hàng");
-            console.error("Confirm pickup error:", error);
-          }
-        };
-        confirmPickup();
-      } catch (err) {
-        Alert.alert("Lỗi", "Không thể phân tích dữ liệu QR");
-        console.error("Parse QR error:", err);
+      const confirmFn = actionMap[action];
+
+      if (!confirmFn) {
+        Alert.alert("Lỗi", `Hành động không hợp lệ: ${action}`);
+        return;
       }
+
+      const response = await confirmFn();
+      console.log(`${action} response:`, response);
+      Alert.alert(
+        "Thành công",
+        `Đã xác nhận ${action === "PICKUP" ? "nhận" : "giao"} lô hàng`
+      );
+    } catch (error) {
+      console.error("Barcode scan error:", error);
+      Alert.alert("Lỗi", "Không thể xử lý dữ liệu QR");
     }
   };
 
@@ -153,7 +159,7 @@ export default function QRCode() {
               </Text>
               <TouchableOpacity
                 className="bg-blue-500 py-3 px-8 rounded-lg"
-                onPress={() => router.back()} 
+                onPress={() => router.back()}
               >
                 <Text className="text-white text-lg font-bold">Hủy</Text>
               </TouchableOpacity>
